@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <title>esta já foi minha casa</title>
   <style>
-    /* Tela cheia sem margens */
     html, body {
       margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif;
+      background: black;
     }
     #street-view {
       height: 100vh;
@@ -14,7 +14,6 @@
       position: relative;
     }
 
-    /* Título sobreposto no topo centro */
     #title-overlay {
       position: absolute;
       top: 10px;
@@ -29,7 +28,6 @@
       z-index: 10;
     }
 
-    /* Botões flutuantes no topo direito */
     #buttons-container {
       position: absolute;
       top: 10px;
@@ -53,9 +51,8 @@
       background: rgba(0,0,0,0.9);
     }
 
-    /* Modal de formulário e info */
     .modal-overlay {
-      display: none; /* escondido por padrão */
+      display: none;
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.6);
@@ -83,8 +80,7 @@
       display: block;
       margin: 10px 0 5px;
     }
-    .modal input[type="text"],
-    .modal input[type="file"] {
+    .modal input[type="text"] {
       width: 100%;
       padding: 8px;
       font-size: 1em;
@@ -99,7 +95,6 @@
       margin-top: 10px;
     }
 
-    /* Navegação casas */
     #nav-houses {
       position: absolute;
       bottom: 15px;
@@ -146,10 +141,6 @@
       <form id="form-add">
         <label for="input-address">Endereço</label>
         <input id="input-address" type="text" placeholder="Digite seu endereço" required autocomplete="off" />
-
-        <label for="input-image">Foto da casa</label>
-        <input id="input-image" type="file" accept="image/*" required />
-
         <button type="submit">Enviar</button>
         <button type="button" class="close-btn" id="close-add">Cancelar</button>
       </form>
@@ -161,17 +152,15 @@
     <div class="modal">
       <h2>Sobre o projeto</h2>
       <p>
-        Este projeto reúne fotos e locais de casas que já foram importantes para pessoas, criando uma viagem virtual em Street View para navegar entre memórias.
+        Este projeto reúne locais de casas que já foram importantes para pessoas, criando uma viagem virtual em Street View para navegar entre memórias.
       </p>
       <button type="button" class="close-btn" id="close-info">Fechar</button>
     </div>
   </div>
 
-  <!-- Firebase + Google Maps APIs -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAPudJezQVWRdvr1ns_mRtvPwSuhi2fbhk",
@@ -185,13 +174,11 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
     let streetView;
-    let houses = []; // Lista de casas carregadas do Firestore
+    let houses = [];
     let currentIndex = 0;
 
-    // Elementos DOM
     const btnAdd = document.getElementById("btn-add");
     const btnInfo = document.getElementById("btn-info");
     const modalAdd = document.getElementById("modal-add");
@@ -200,12 +187,10 @@
     const closeInfo = document.getElementById("close-info");
     const formAdd = document.getElementById("form-add");
     const inputAddress = document.getElementById("input-address");
-    const inputImage = document.getElementById("input-image");
     const navHouses = document.getElementById("nav-houses");
     const btnPrevHouse = document.getElementById("prev-house");
     const btnNextHouse = document.getElementById("next-house");
 
-    // Inicializar Street View fullscreen
     function initStreetView() {
       const defaultPos = { lat: -5.7945, lng: -35.211 };
       streetView = new google.maps.StreetViewPanorama(
@@ -220,10 +205,9 @@
       );
     }
 
-    // Mostrar casa no Street View pela posição
     function showHouse(index) {
       if (houses.length === 0) return;
-      if (index < 0) index = houses.length -1;
+      if (index < 0) index = houses.length - 1;
       if (index >= houses.length) index = 0;
       currentIndex = index;
       const house = houses[index];
@@ -232,20 +216,17 @@
       navHouses.style.display = houses.length > 1 ? "flex" : "none";
     }
 
-    // Carregar casas do Firestore
     async function loadHouses() {
       houses = [];
       const querySnapshot = await getDocs(collection(db, "casas"));
       querySnapshot.forEach(doc => {
-        const data = doc.data();
-        houses.push(data);
+        houses.push(doc.data());
       });
       if (houses.length) {
         showHouse(0);
       }
     }
 
-    // Configurar Google Places Autocomplete no input endereço
     let autocomplete;
     function initAutocomplete() {
       autocomplete = new google.maps.places.Autocomplete(inputAddress, {
@@ -254,16 +235,7 @@
       });
     }
 
-    // Geocodificar endereço usando Places Autocomplete place
-    function getPlaceLocation() {
-      const place = autocomplete.getPlace();
-      if (!place || !place.geometry) {
-        return null;
-      }
-      return place.geometry.location;
-    }
-
-    // Abrir/fechar modais
+    // Modal controle
     function openModal(modal) {
       modal.classList.add("active");
     }
@@ -271,24 +243,17 @@
       modal.classList.remove("active");
     }
 
-    // Eventos botões abrir/fechar modais
     btnAdd.onclick = () => openModal(modalAdd);
     btnInfo.onclick = () => openModal(modalInfo);
     closeAdd.onclick = () => closeModal(modalAdd);
     closeInfo.onclick = () => closeModal(modalInfo);
 
-    // Navegar casas
-    btnPrevHouse.onclick = () => {
-      showHouse(currentIndex - 1);
-    };
-    btnNextHouse.onclick = () => {
-      showHouse(currentIndex + 1);
-    };
+    btnPrevHouse.onclick = () => showHouse(currentIndex - 1);
+    btnNextHouse.onclick = () => showHouse(currentIndex + 1);
 
-    // Envio do formulário
     formAdd.addEventListener("submit", async e => {
       e.preventDefault();
-      // Obter endereço confirmado pelo autocomplete
+
       const place = autocomplete.getPlace();
       if (!place || !place.geometry) {
         alert("Por favor, selecione um endereço válido da lista.");
@@ -296,25 +261,12 @@
       }
       const location = place.geometry.location;
       const address = place.formatted_address;
-      const file = inputImage.files[0];
-
-      if (!file) {
-        alert("Por favor, selecione uma imagem.");
-        return;
-      }
 
       try {
-        // Upload imagem
-        const storageRef = ref(storage, "images/" + Date.now() + "_" + file.name);
-        await uploadBytes(storageRef, file);
-        const imageUrl = await getDownloadURL(storageRef);
-
-        // Salvar no Firestore
         await addDoc(collection(db, "casas"), {
           address,
           latitude: location.lat(),
           longitude: location.lng(),
-          imageUrl,
           createdAt: new Date()
         });
 
@@ -322,13 +274,11 @@
         formAdd.reset();
         closeModal(modalAdd);
         loadHouses();
-
-      } catch (error) {
-        alert("Erro ao salvar dados: " + error);
+      } catch (err) {
+        alert("Erro ao salvar dados: " + err);
       }
     });
 
-    // Inicializar tudo após API carregar
     window.initMap = () => {
       initStreetView();
       initAutocomplete();
@@ -337,10 +287,9 @@
 
   </script>
 
-  <!-- Google Maps JS API + Places (substitua a chave abaixo pela sua chave Google Maps API) -->
+  <!-- Google Maps JS API + Places -->
   <script async
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU&callback=initMap&libraries=places">
   </script>
-
 </body>
 </html>
