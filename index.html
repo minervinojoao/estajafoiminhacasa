@@ -1,106 +1,220 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>esta já foi minha casa</title>
   <style>
     body {
       font-family: sans-serif;
-      text-align: center;
       margin: 0;
       padding: 0;
+      text-align: center;
     }
-    #map {
+    #container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px;
+    }
+    #map, #street-view {
+      width: 45vw;
       height: 400px;
-      width: 100%;
+      border: 1px solid #ccc;
     }
     form {
-      margin: 20px auto;
+      margin: 15px auto;
+      max-width: 400px;
+    }
+    form input, form button {
+      margin: 5px 0;
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
     }
     .gallery {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
+      gap: 10px;
+      margin: 10px;
     }
     .gallery img {
-      margin: 10px;
       max-width: 200px;
+      max-height: 150px;
+      object-fit: cover;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.3s;
+    }
+    .gallery img:hover {
+      border-color: #007bff;
     }
   </style>
 </head>
 <body>
+
   <h1>esta já foi minha casa</h1>
 
-  <div id="map"></div>
+  <div id="container">
+    <div id="map"></div>
+    <div id="street-view"></div>
+  </div>
 
   <form id="houseForm">
-    <input type="text" id="address" placeholder="Endereço" required>
-    <input type="file" id="image" accept="image/*" required>
-    <button type="submit">Adicionar</button>
+    <input type="text" id="address" placeholder="Digite o endereço" required />
+    <input type="file" id="image" accept="image/*" required />
+    <button type="submit">Adicionar Casa</button>
   </form>
 
   <div class="gallery" id="gallery"></div>
 
-  <!-- Firebase -->
+  <!-- Firebase SDKs -->
   <script type="module">
-    // Firebase SDKs
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU",
+      apiKey: "AIzaSyAPudJezQVWRdvr1ns_mRtvPwSuhi2fbhk",
       authDomain: "projvideoarte-ae894.firebaseapp.com",
       projectId: "projvideoarte-ae894",
-      storageBucket: "projvideoarte-ae894.appspot.com",
+      storageBucket: "projvideoarte-ae894.firebasestorage.app",
       messagingSenderId: "76878396475",
-      appId: "1:76878396475:web:12034f56366889cd7d301e"
+      appId: "1:76878396475:web:12034f56366889cd7d301e",
+      measurementId: "G-XZJ1PDQ1ZK"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    const form = document.getElementById("houseForm");
+    let map, streetView;
+    let markers = [];
     const gallery = document.getElementById("gallery");
+    const form = document.getElementById("houseForm");
 
-    async function loadGallery() {
-      const querySnapshot = await getDocs(collection(db, "casas"));
+    // Inicializa mapa e street view
+    window.initMap = () => {
+      const defaultLoc = { lat: -5.7945, lng: -35.211 };
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: defaultLoc,
+        zoom: 13,
+      });
+      streetView = new google.maps.StreetViewPanorama(
+        document.getElementById("street-view"),
+        {
+          position: defaultLoc,
+          pov: { heading: 165, pitch: 0 },
+          visible: true,
+        }
+      );
+      map.setStreetView(streetView);
+      loadHouses();
+    };
+
+    // Função para carregar as casas do Firestore
+    async function loadHouses() {
+      // Limpar marcadores existentes
+      markers.forEach((m) => m.setMap(null));
+      markers = [];
       gallery.innerHTML = "";
-      querySnapshot.forEach(async (doc) => {
+
+      const querySnapshot = await getDocs(collection(db, "casas"));
+      querySnapshot.forEach((doc) => {
         const data = doc.data();
+        const pos = { lat: data.latitude, lng: data.longitude };
+
+        // Criar marcador
+        const marker = new google.maps.Marker({
+          position: pos,
+          map: map,
+          title: data.address,
+        });
+        markers.push(marker);
+
+        // Ao clicar no marcador, atualizar street view para aquela posição
+        marker.addListener("click", () => {
+          streetView.setPosition(pos);
+          streetView.setPov({ heading: 165, pitch: 0 });
+          streetView.setVisible(true);
+          map.panTo(pos);
+        });
+
+        // Adicionar imagem na galeria
         const img = document.createElement("img");
         img.src = data.imageUrl;
         img.alt = data.address;
+        img.title = data.address;
+        img.addEventListener("click", () => {
+          streetView.setPosition(pos);
+          streetView.setPov({ heading: 165, pitch: 0 });
+          streetView.setVisible(true);
+          map.panTo(pos);
+        });
         gallery.appendChild(img);
       });
     }
 
+    // Geocodificação via Google Maps Geocoder
+    function geocodeAddress(address) {
+      return new Promise((resolve, reject) => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: address }, (results, status) => {
+          if (status === "OK" && results[0]) {
+            resolve(results[0].geometry.location);
+          } else {
+            reject("Não foi possível encontrar o endereço.");
+          }
+        });
+      });
+    }
+
+    // Formulário submit: enviar dados ao Firebase
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const address = document.getElementById("address").value;
+
+      const address = document.getElementById("address").value.trim();
       const imageFile = document.getElementById("image").files[0];
-      const storageRef = ref(storage, "images/" + Date.now() + "_" + imageFile.name);
-      await uploadBytes(storageRef, imageFile);
-      const imageUrl = await getDownloadURL(storageRef);
-      await addDoc(collection(db, "casas"), { address, imageUrl });
-      form.reset();
-      loadGallery();
+
+      if (!address || !imageFile) {
+        alert("Por favor, preencha o endereço e selecione uma imagem.");
+        return;
+      }
+
+      try {
+        // Geocodificar endereço
+        const location = await geocodeAddress(address);
+        const latitude = location.lat();
+        const longitude = location.lng();
+
+        // Upload da imagem no Storage
+        const storageRef = ref(storage, "images/" + Date.now() + "_" + imageFile.name);
+        await uploadBytes(storageRef, imageFile);
+        const imageUrl = await getDownloadURL(storageRef);
+
+        // Salvar dados no Firestore
+        await addDoc(collection(db, "casas"), {
+          address,
+          latitude,
+          longitude,
+          imageUrl,
+          createdAt: new Date()
+        });
+
+        alert("Casa adicionada com sucesso!");
+        form.reset();
+        loadHouses();
+
+      } catch (error) {
+        alert("Erro: " + error);
+      }
     });
-
-    window.initMap = function () {
-      new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -5.7945, lng: -35.211 },
-        zoom: 12,
-      });
-    };
-
-    loadGallery();
   </script>
 
-  <!-- Google Maps API -->
+  <!-- Google Maps API (substitua pela sua chave Google Maps API abaixo) -->
   <script async
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU&callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU&callback=initMap&libraries=places">
   </script>
+
 </body>
 </html>
