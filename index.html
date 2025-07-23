@@ -1,81 +1,11 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Esta já foi minha casa</title>
-    <style>
-      html, body, #map {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      #add-btn {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 5;
-        background: white;
-        padding: 10px;
-        border: 1px solid #999;
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="add-btn">Adicionar nova casa</div>
-    <div id="map"></div>
-
-    <script>
-      let map;
-      let geocoder;
-
-      const casas = [
-        // Exemplo:
-        // { endereco: "Rua Macaé, 2010, Natal RN", lat: -5.7945, lng: -35.211 },
-      ];
-
-      function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-          center: { lat: -5.7945, lng: -35.211 }, // Natal-RN
-          zoom: 13,
-        });
-
-        geocoder = new google.maps.Geocoder();
-
-        casas.forEach((casa) => {
-          new google.maps.Marker({
-            map,
-            position: { lat: casa.lat, lng: casa.lng },
-            title: casa.endereco,
-          });
-        });
-
-        document.getElementById("add-btn").addEventListener("click", () => {
-          const endereco = prompt("Digite o endereço:");
-          if (!endereco) return;
-
-          geocoder.geocode({ address: endereco }, (results, status) => {
-            if (status === "OK") {
-              const location = results[0].geometry.location;
-              new google.maps.Marker({
-                map,
-                position: location,
-                title: endereco,
-              });
-              map.setCenter(location);
-              alert("Casa adicionada! (não será salva ainda)");
-            } else {
-              alert("Erro ao localizar endereço: " + status);
-            }
-          });
-        });
-      }
-    </script>
-
-    <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU&callback=initMap"
-      async
-      defer
-    ></script>
-  </body>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Esta já foi minha casa</title>
+</head>
+<body>
+  <h1>Site funcionando!</h1>
+  <p>Vamos reconstruir juntos a partir daqui.</p>
+</body>
 </html>
