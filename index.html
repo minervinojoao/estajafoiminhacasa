@@ -1,11 +1,106 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Esta já foi minha casa</title>
+  <title>esta já foi minha casa</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 400px;
+      width: 100%;
+    }
+    form {
+      margin: 20px auto;
+    }
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .gallery img {
+      margin: 10px;
+      max-width: 200px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Site funcionando!</h1>
-  <p>Vamos reconstruir juntos a partir daqui.</p>
+  <h1>esta já foi minha casa</h1>
+
+  <div id="map"></div>
+
+  <form id="houseForm">
+    <input type="text" id="address" placeholder="Endereço" required>
+    <input type="file" id="image" accept="image/*" required>
+    <button type="submit">Adicionar</button>
+  </form>
+
+  <div class="gallery" id="gallery"></div>
+
+  <!-- Firebase -->
+  <script type="module">
+    // Firebase SDKs
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU",
+      authDomain: "projvideoarte-ae894.firebaseapp.com",
+      projectId: "projvideoarte-ae894",
+      storageBucket: "projvideoarte-ae894.appspot.com",
+      messagingSenderId: "76878396475",
+      appId: "1:76878396475:web:12034f56366889cd7d301e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    const form = document.getElementById("houseForm");
+    const gallery = document.getElementById("gallery");
+
+    async function loadGallery() {
+      const querySnapshot = await getDocs(collection(db, "casas"));
+      gallery.innerHTML = "";
+      querySnapshot.forEach(async (doc) => {
+        const data = doc.data();
+        const img = document.createElement("img");
+        img.src = data.imageUrl;
+        img.alt = data.address;
+        gallery.appendChild(img);
+      });
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const address = document.getElementById("address").value;
+      const imageFile = document.getElementById("image").files[0];
+      const storageRef = ref(storage, "images/" + Date.now() + "_" + imageFile.name);
+      await uploadBytes(storageRef, imageFile);
+      const imageUrl = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "casas"), { address, imageUrl });
+      form.reset();
+      loadGallery();
+    });
+
+    window.initMap = function () {
+      new google.maps.Map(document.getElementById("map"), {
+        center: { lat: -5.7945, lng: -35.211 },
+        zoom: 12,
+      });
+    };
+
+    loadGallery();
+  </script>
+
+  <!-- Google Maps API -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU&callback=initMap">
+  </script>
 </body>
 </html>
