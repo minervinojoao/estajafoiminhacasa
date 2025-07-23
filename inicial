@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>esta já foi minha casa</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; font-family: sans-serif; background-color: black; overflow: hidden;
+    }
+    #streetview {
+      width: 100vw; height: 100vh;
+    }
+    .caption {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.6); color: white; padding: 1rem; font-size: 1.5rem; font-weight: bold; border-radius: 10px;
+      z-index: 5;
+    }
+    .buttons-overlay {
+      position: absolute; top: 1rem; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 0.5rem; align-items: center; z-index: 10;
+    }
+    .buttons-overlay button {
+      padding: 0.6rem 1rem; font-size: 1rem; cursor: pointer;
+      border: none; border-radius: 5px; background-color: rgba(255,255,255,0.9);
+    }
+    #nav-buttons {
+      display: flex; gap: 0.5rem; margin-left: 0.5rem;
+    }
+    .modal {
+      display: none; position: fixed; top:0; left:0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 20;
+    }
+    .modal-content {
+      background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="streetview"></div>
+  <div class="caption" id="caption" style="display:none;">esta já foi minha casa</div>
+
+  <div class="buttons-overlay">
+    <button onclick="openModal('add')">Adicionar minha casa</button>
+    <button onclick="openModal('info')">Informações</button>
+
+    <div id="nav-buttons">
+      <button onclick="prevLocation()">⟨</button>
+      <button onclick="nextLocation()">⟩</button>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar -->
+  <div class="modal" id="add-modal">
+    <div class="modal-content">
+      <h2>Adicionar uma casa</h2>
+      <label for="address">Endereço:</label><br />
+      <input type="text" id="address" placeholder="Rua, cidade, estado" style="width:100%" /><br /><br />
+      <button onclick="loadStreetViewFromInput()">Enviar</button>
+      <button onclick="closeModal('add')">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal Informações -->
+  <div class="modal" id="info-modal">
+    <div class="modal-content">
+      <h2>Sobre o projeto</h2>
+      <p>Este site é um espaço de memória. Pessoas podem compartilhar imagens de lugares que um dia foram suas casas. Cada visualização traz a frase "esta já foi minha casa" como testemunho do tempo.</p>
+      <button onclick="closeModal('info')">Fechar</button>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Google Maps SDK -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU"></script>
+
+  <script>
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAPudJezQVWRdvr1ns_mRtvPwSuhi2fbhk",
+      authDomain: "projvideoarte-ae894.firebaseapp.com",
+      projectId: "projvideoarte-ae894",
+      storageBucket: "projvideoarte-ae894.appspot.com",
+      messagingSenderId: "76878396475",
+      appId: "1:76878396475:web:12034f56366889cd7d301e",
+      measurementId: "G-XZJ1PDQ1ZK"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let panorama;
+    let locations = [];
+    let currentIndex = -1;
+
+    function openModal(type) {
+      document.getElementById(type + "-modal").style.display = "flex";
+    }
+    function closeModal(type) {
+      document.getElementById(type + "-modal").style.display = "none";
+    }
+
+    window.onload = () => {
+      db.collection("enderecos").get().then((querySnapshot) => {
+        locations = [];
+        querySnapshot.forEach((doc) => {
+          locations.push(doc.data());
+        });
+        if (locations.length > 0) {
+          currentIndex = 0;
+          showPanorama(locations[0].lat, locations[0].lng);
+          showCaption(true);
+        }
+      });
+    };
+
+    function showCaption(show) {
+      document.getElementById("caption").style.display = show ? "block" : "none";
+    }
+
+    function loadStreetViewFromInput() {
+      const address = document.getElementById("address").value.trim();
+      if (!address) {
+        alert("Por favor, insira um endereço.");
+        return;
+      }
+      fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=AIzaSyBf-DPaRDXfJnlWcAvy3DY8tPIOhyoZeOU`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === "OK") {
+            const loc = data.results[0].geometry.location;
+            addLocation({ address, lat: loc.lat, lng: loc.lng });
+            closeModal("add");
+            document.getElementById("address").value = "";
+          } else {
+            alert("Endereço não encontrado.");
+          }
+        });
+    }
+
+    function addLocation(loc) {
+      db.collection("enderecos").add(loc).then(() => {
+        locations.push(loc);
+        currentIndex = locations.length -1;
+        showPanorama(loc.lat, loc.lng);
+        showCaption(true);
+      }).catch((error) => {
+        alert("Erro ao salvar endereço: " + error.message);
+      });
+    }
+
+    function showPanorama(lat, lng) {
+      if (!panorama) {
+        panorama = new google.maps.StreetViewPanorama(
+          document.getElementById("streetview"),
+          {
+            position: { lat, lng },
+            pov: { heading: 0, pitch: 0 },
+            zoom: 1
+          }
+        );
+      } else {
+        panorama.setPosition({ lat, lng });
+      }
+    }
+
+    function nextLocation() {
+      if (locations.length === 0) return;
+      currentIndex++;
+      if (currentIndex >= locations.length) currentIndex = 0;
+      const loc = locations[currentIndex];
+      showPanorama(loc.lat, loc.lng);
+    }
+
+    function prevLocation() {
+      if (locations.length === 0) return;
+      currentIndex--;
+      if (currentIndex < 0) currentIndex = locations.length -1;
+      const loc = locations[currentIndex];
+      showPanorama(loc.lat, loc.lng);
+    }
+  </script>
+</body>
+</html>
